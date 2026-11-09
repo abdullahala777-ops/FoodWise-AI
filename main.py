@@ -223,6 +223,7 @@ if missing_required:
     st.stop()
 
 prep, models = load_artifacts()
+st.write("مسار النماذج:", find_file("ridge.joblib"))
 results = load_results()
 test_df = load_test()
 raw = load_raw()
