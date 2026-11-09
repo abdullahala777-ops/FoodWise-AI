@@ -31,6 +31,7 @@ sns.set_theme(style="whitegrid")
 # ----------------------------------------------------------------------------
 BASE = Path(__file__).resolve().parent
 SEARCH_DIRS = [
+    BASE / "Notebooks" / "Models",
     BASE,
     BASE / "Models", BASE / "models",
     BASE / "Data" / "Cleaned", BASE / "data" / "cleaned",
