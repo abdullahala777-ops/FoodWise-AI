@@ -223,6 +223,14 @@ if missing_required:
     st.stop()
 
 prep, models = load_artifacts()
+from sklearn.utils.validation import check_is_fitted
+
+for name, model in models.items():
+    try:
+        check_is_fitted(model)
+        st.write(name, "مدرّب")
+    except Exception:
+        st.write(name, "غير مدرّب")
 st.write("مسار النماذج:", find_file("ridge.joblib"))
 results = load_results()
 test_df = load_test()
