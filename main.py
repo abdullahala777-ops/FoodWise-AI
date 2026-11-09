@@ -2,7 +2,8 @@
 FoodWise AI - Food Waste Prediction App
 Run with:  streamlit run main.py
 
-Files that must be in the SAME folder as this file:
+Put main.py in the project root. The files are found automatically in the
+root, Models/, Data/Cleaned/, or Data/Original/:
     preprocessing.joblib, linear_regression.joblib, ridge.joblib,
     random_forest.joblib, gradient_boosting.joblib, baseline_mean.joblib
 Optional (more features when present):
@@ -29,6 +30,12 @@ sns.set_theme(style="whitegrid")
 # Settings
 # ----------------------------------------------------------------------------
 BASE = Path(__file__).resolve().parent
+SEARCH_DIRS = [
+    BASE,
+    BASE / "Models", BASE / "models",
+    BASE / "Data" / "Cleaned", BASE / "data" / "cleaned",
+    BASE / "Data" / "Original", BASE / "data" / "original",
+]
 PREP_FILE = "preprocessing.joblib"
 RESULTS_FILE = "model_results.csv"
 TEST_FILE = "test_ready.csv"
@@ -68,32 +75,44 @@ st.markdown(
 # ----------------------------------------------------------------------------
 # Loading (cached)
 # ----------------------------------------------------------------------------
+def find_file(name):
+    """Look for a file in the root and in Models/, Data/Cleaned/, Data/Original/."""
+    for folder in SEARCH_DIRS:
+        path = folder / name
+        if path.exists():
+            return path
+    return BASE / name
+
+
 @st.cache_resource(show_spinner=False)
 def load_artifacts():
-    prep = joblib.load(BASE / PREP_FILE)
-    models = {name: joblib.load(BASE / f) for name, f in MODEL_FILES.items()}
+    prep = joblib.load(find_file(PREP_FILE))
+    models = {name: joblib.load(find_file(f)) for name, f in MODEL_FILES.items()}
     return prep, models
 
 
 @st.cache_data(show_spinner=False)
 def load_results():
-    path = BASE / RESULTS_FILE
+    path = find_file(RESULTS_FILE)
     return pd.read_csv(path) if path.exists() else None
 
 
 @st.cache_data(show_spinner=False)
 def load_test():
-    path = BASE / TEST_FILE
+    path = find_file(TEST_FILE)
     return pd.read_csv(path) if path.exists() else None
 
 
 def raw_path():
     """The Excel file; also finds copies like 'Food_Waste_Prediction_Dataset.xlsx'."""
-    path = BASE / RAW_FILE
+    path = find_file(RAW_FILE)
     if path.exists():
         return path
-    found = sorted(BASE.glob("Food_Waste_Prediction_Dataset*.xlsx"))
-    return found[0] if found else path
+    for folder in SEARCH_DIRS:
+        found = sorted(folder.glob("Food_Waste_Prediction_Dataset*.xlsx"))
+        if found:
+            return found[0]
+    return path
 
 
 @st.cache_data(show_spinner=False)
@@ -192,13 +211,13 @@ def get_ranges(raw):
 # Check the required files first
 # ----------------------------------------------------------------------------
 required = [PREP_FILE] + list(MODEL_FILES.values())
-missing_required = [name for name in required if not (BASE / name).exists()]
+missing_required = [name for name in required if not find_file(name).exists()]
 if missing_required:
     st.error("ملفات ناقصة: التطبيق ما يقدر يشتغل بدونها.")
     st.code("\n".join(missing_required))
     st.info(
         "شغّل Notebook 01 و Notebook 02 أول، وتأكد إن ملفات الحفظ "
-        "(joblib) في نفس مجلد main.py."
+        "(joblib) موجودة في مجلد Models أو بجنب main.py."
     )
     st.stop()
 
@@ -218,12 +237,9 @@ if results is not None and {"Model", "RMSE"} <= set(results.columns):
 
 
 def model_metrics(name):
-    if results is None:
+    if results is None or name not in set(results["Model"]):
         return None
-    matched = results[results.iloc[:, 0] == name]
-    if matched.empty:
-        return None
-    return matched.iloc[0]
+    return results[results["Model"] == name].iloc[0]
 
 
 # ----------------------------------------------------------------------------
@@ -312,7 +328,6 @@ with tab_pred:
         preds = predict_all(row_df, prep, models).iloc[0]
         value = float(preds[chosen])
 
-        # Warn when an input is outside what the models saw in training
         for col, label in [("Prepared_Quantity", "الكمية المحضّرة"), ("Customers", "عدد الزبائن"), ("Temperature_C", "درجة الحرارة")]:
             low, high = ranges[col]
             if row[col] < low or row[col] > high:
@@ -457,7 +472,7 @@ with tab_compare:
 with tab_explore:
     st.subheader("استكشاف البيانات الأصلية")
     if raw is None:
-        st.warning(f"ضع ملف الإكسل «{RAW_FILE}» في نفس المجلد عشان يشتغل هذا القسم.")
+        st.warning(f"ضع ملف الإكسل «{RAW_FILE}» في مجلد Data/Original عشان يشتغل هذا القسم.")
     else:
         f1, f2, f3 = st.columns(3)
         sel_city = f1.multiselect("المدينة", sorted(raw["City"].unique()), default=sorted(raw["City"].unique()))
@@ -588,9 +603,9 @@ with tab_batch:
         except Exception as error:
             st.error(f"ما قدرت أعالج الملف: {error}")
 
-# ----------------------------------------------------------------------------
+# -------------------------------------------------
 # Tab 5: about
-# ----------------------------------------------------------------------------
+# -------------------------------------------------
 with tab_about:
     st.subheader("عن المشروع")
     st.markdown(
@@ -604,7 +619,7 @@ with tab_about:
 
 **قرارات مهمة:**
 - حذفنا `Remaining_Quantity` و`Sold_Quantity` لأنهم يكشفون الهدر (تسريب هدف)، فالنتائج أقل لكنها صادقة.
-- الأعمدة `Restaurant_ID` و`Restaurant_Name` تكرر `City`، فاستبعدناهم.
+- الأعمدة `Restaurant_ID` و`Restaurant_Name` تكرر `City`، فاستبعدناه.
 - `Weekend` يُحسب من التاريخ (السبت والأحد)، و`month` من التاريخ.
 
 **حدود المشروع:**
@@ -615,4 +630,4 @@ with tab_about:
     )
     with st.expander("الملفات المستخدمة"):
         files = [PREP_FILE] + list(MODEL_FILES.values()) + [RESULTS_FILE, TEST_FILE, RAW_FILE]
-        st.dataframe(pd.DataFrame({"File": files, "Found": [(BASE / f).exists() or (f == RAW_FILE and raw_path().exists()) for f in files]}))
+        st.dataframe(pd.DataFrame({"File": files, "Found": [find_file(f).exists() or (f == RAW_FILE and raw_path().exists()) for f in files]}))
