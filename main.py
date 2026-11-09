@@ -85,7 +85,7 @@ def find_file(name):
     return BASE / name
 
 
-@st.cache_resource(show_spinner=False)
+
 def load_artifacts():
     prep = joblib.load(find_file(PREP_FILE))
     models = {name: joblib.load(find_file(f)) for name, f in MODEL_FILES.items()}
