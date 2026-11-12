@@ -50,7 +50,6 @@ food/
 
 1. Clone the repository:
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
 ```
 
 2. Install the required packages:
