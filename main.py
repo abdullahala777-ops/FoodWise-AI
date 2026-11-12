@@ -31,11 +31,11 @@ sns.set_theme(style="whitegrid")
 # ----------------------------------------------------------------------------
 BASE = Path(__file__).resolve().parent
 SEARCH_DIRS = [
-    BASE / "Notebooks" / "Models",
+    BASE / "Models",
     BASE,
-    BASE / "Models", BASE / "models",
-    BASE / "Data" / "Cleaned", BASE / "data" / "cleaned",
-    BASE / "Data" / "Original", BASE / "data" / "original",
+    BASE / "Notebooks" / "Models",
+    BASE / "Data" / "Cleaned",
+    BASE / "Data" / "Original",
 ]
 PREP_FILE = "preprocessing.joblib"
 RESULTS_FILE = "model_results.csv"
